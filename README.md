@@ -1,3 +1,3 @@
 # bancobase_challenge
 
-El Readme a detalle se encuentra en la carpeta ejercicio1 de ese challenge.
+Se realizan todos los ejercicios solicitados, revisar los readme para checar las instrucciones.
