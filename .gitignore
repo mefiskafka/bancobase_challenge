@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Python
+# ─────────────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.Python
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Test / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Variables de entorno (no commitear secretos ni UIDs locales)
+# ─────────────────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Airflow — runtime artefactos (mantenemos la carpeta vacía con .gitkeep)
+# ─────────────────────────────────────────────────────────────────────────────
+ejercicio1/Airflow/logs/*
+!ejercicio1/Airflow/logs/.gitkeep
+ejercicio1/Airflow/dags/__pycache__/
+ejercicio1/Airflow/plugins/__pycache__/
+airflow.db
+airflow-webserver.pid
+standalone_admin_password.txt
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MinIO — datos del object store (se regeneran en cada `docker compose up`)
+# ─────────────────────────────────────────────────────────────────────────────
+ejercicio1/Minio/data/*
+!ejercicio1/Minio/data/.gitkeep
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Borradores y notas locales
+# ─────────────────────────────────────────────────────────────────────────────
+mydraft/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IDEs y SO
+# ─────────────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

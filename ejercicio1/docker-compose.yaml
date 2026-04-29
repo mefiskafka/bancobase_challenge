@@ -70,9 +70,29 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:- polars trino}
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:- polars trino s3fs boto3 apache-airflow-providers-trino apache-airflow-providers-amazon}
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+    # MinIO / S3 settings consumed by the DAG (Polars storage_options)
+    MINIO_ENDPOINT: http://minio:9000
+    MINIO_ACCESS_KEY: minio
+    MINIO_SECRET_KEY: minio1234
+    MINIO_REGION: us-east-1
+    LANDING_BUCKET: bck-landing
+    BRONZE_BUCKET: bck-bronze
+    LANDING_OBJECT_KEY: data/data_prueba_tecnica.csv
+    BRONZE_MASTER_KEY: master/data_prueba_tecnica.parquet
+    BRONZE_AGG_KEY: master_agg/tbl_data_agg.parquet
+    BRONZE_QUARANTINE_KEY: quarantine/data_prueba_tecnica_quarantine.parquet
+    # Trino settings consumed by the DAG (trino python client)
+    TRINO_HOST: trino
+    TRINO_PORT: 8080
+    TRINO_USER: root
+    TRINO_CATALOG: bronze
+    TRINO_SCHEMA: prueba
+    # Airflow connections registered automatically (URI format)
+    AIRFLOW_CONN_MINIO_S3: 'aws://minio:minio1234@?endpoint_url=http%3A%2F%2Fminio%3A9000&region_name=us-east-1'
+    AIRFLOW_CONN_TRINO_DEFAULT: 'trino://root@trino:8080/bronze'
   volumes:
     - ./Airflow/dags:/opt/airflow/dags
     - ./Airflow/logs:/opt/airflow/logs
@@ -292,6 +312,10 @@ services:
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
+    depends_on:
+      <<: *airflow-common-depends-on
+      minio-init:
+        condition: service_completed_successfully
 
   airflow-cli:
     <<: *airflow-common
@@ -339,9 +363,10 @@ services:
     command: server --console-address ":9001" /data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     volumes:
       - ./Minio/data:/data
     ports:
@@ -350,6 +375,28 @@ services:
     environment:
       - MINIO_ROOT_USER=minio
       - MINIO_ROOT_PASSWORD=minio1234
+
+  # One-shot bootstrap: create buckets bck-landing and bck-bronze and upload the CSV
+  minio-init:
+    image: minio/mc:latest
+    container_name: "minio-init"
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./data_prueba_tecnica.csv:/seed/data_prueba_tecnica.csv:ro
+    entrypoint: >
+      /bin/sh -c "
+      set -e;
+      until mc alias set local http://minio:9000 minio minio1234 >/dev/null 2>&1; do
+        echo 'Waiting for MinIO...'; sleep 2;
+      done;
+      mc mb --ignore-existing local/bck-landing;
+      mc mb --ignore-existing local/bck-bronze;
+      mc cp /seed/data_prueba_tecnica.csv local/bck-landing/data/data_prueba_tecnica.csv;
+      echo 'MinIO bootstrap completed: buckets created and CSV uploaded.';
+      "
+    restart: "no"
 
   mysql:
     image: mysql:8.0.30
